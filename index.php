@@ -1,0 +1,92 @@
+<?php
+require 'db.php';
+
+// Логика поиска
+$search = $_GET['search'] ?? '';
+$searchParam = "%$search%";
+
+if ($search) {
+    $stmt = $pdo->prepare("SELECT * FROM books WHERE title LIKE :title OR author LIKE :author");
+    $stmt->execute([
+        'title' => $searchParam,
+        'author' => $searchParam
+    ]);
+} else {
+    // Если поиска нет, выводим всё
+    $stmt = $pdo->query("SELECT * FROM books");
+}
+$books = $stmt->fetchAll();
+?>
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Моя Библиотека</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; background-color: #f4f4f4; max-width: 800px; margin: 0 auto; }
+        table { width: 100%; border-collapse: collapse; background: white; box-shadow: 0 0 10px rgba(0,0,0,0.1); margin-top: 20px; }
+        th, td { padding: 12px; border-bottom: 1px solid #ddd; text-align: left; }
+        th { background-color: #333; color: white; }
+        tr:hover { background-color: #f5f5f5; }
+        .search-box { margin-bottom: 20px; display: flex; gap: 10px; }
+        input[type="text"] { padding: 10px; width: 100%; border: 1px solid #ccc; border-radius: 4px; }
+        button { padding: 10px 20px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #218838; }
+
+        .status-available { color: green; font-weight: bold; }
+        .status-issued { color: red; font-weight: bold; }
+        .status-restoration { color: orange; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>Каталог библиотеки</h1>
+    <div class="search-box">
+        <form action="" method="GET" style="display: flex; width: 100%; gap: 10px;">
+            <input type="text" name="search" placeholder="Поиск книги или автора..." value="<?php echo htmlspecialchars($search); ?>">
+            <button type="submit">Найти</button>
+            <?php if($search): ?>
+                <a href="index.php" style="padding: 10px; text-decoration: none; color: #333; border: 1px solid #ccc; border-radius: 4px; background: white;">Сброс</a>
+            <?php endif; ?>
+        </form>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Название</th>
+                <th>Автор</th>
+                <th>Год</th>
+                <th>Статус</th>
+            </tr>
+        </thead>
+        <tbody>
+            <?php if (count($books) > 0): ?>
+                <?php foreach ($books as $book): ?>
+                    <tr>
+                        <td><?php echo $book['id']; ?></td>
+                        <td><?php echo htmlspecialchars($book['title']); ?></td>
+                        <td><?php echo htmlspecialchars($book['author']); ?></td>
+                        <td><?php echo $book['year']; ?></td>
+                        <td>
+                            <?php
+                                $statusClass = '';
+                                if ($book['status'] == 'доступна') $statusClass = 'status-available';
+                                elseif ($book['status'] == 'выдана') $statusClass = 'status-issued';
+                                elseif ($book['status'] == 'на реставрации') $statusClass = 'status-restoration';
+                            ?>
+                            <span class="<?php echo $statusClass; ?>">
+                                <?php echo $book['status']; ?>
+                            </span>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+            <?php else: ?>
+                <tr>
+                    <td colspan="5" style="text-align:center;">Книги не найдены ️</td>
+                </tr>
+            <?php endif; ?>
+        </tbody>
+    </table>
+</body>
+</html>
