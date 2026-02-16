@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Панель тестирования API</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; background: #f0f2f5; }
+        .container { max-width: 600px; margin: 0 auto; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .section { margin-bottom: 30px; padding: 15px; border: 1px solid #ddd; border-radius: 8px; }
+        input { display: block; width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        button { width: 48%; padding: 10px; cursor: pointer; border: none; border-radius: 4px; color: white; font-weight: bold; }
+        .btn-reg { background: #28a745; }
+        .btn-login { background: #007bff; }
+        .btn-users { background: #6c757d; width: 100%; margin-top: 10px; }
+        pre { background: #333; color: #0f0; padding: 15px; border-radius: 4px; overflow-x: auto; min-height: 50px; }
+        .token-box { font-size: 12px; color: #666; word-break: break-all; margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>API Library Tester</h1>
+
+    <div class="section">
+        <h3>Вход и Регистрация</h3>
+        <input type="text" id="loginField" placeholder="Логин (например, admin)">
+        <input type="password" id="passField" placeholder="Пароль">
+
+        <div style="display: flex; justify-content: space-between;">
+            <button class="btn-reg" onclick="apiCall('register')">Регистрация</button>
+            <button class="btn-login" onclick="apiCall('login')">Войти (Login)</button>
+        </div>
+    </div>
+
+    <div class="section">
+        <h3>Пользователи</h3>
+        <button class="btn-users" onclick="apiCall('get_users')">Получить список участников</button>
+    </div>
+
+    <h3>Ответ сервера:</h3>
+    <pre id="apiResult">{ "waiting": "нажмите кнопку..." }</pre>
+
+    <div class="token-box">
+        <strong>Текущий токен в памяти:</strong> <span id="savedToken">отсутствует</span>
+    </div>
+</div>
+
+<script>
+    async function apiCall(method) {
+        const login = document.getElementById('loginField').value;
+        const password = document.getElementById('passField').value;
+        const resultBlock = document.getElementById('apiResult');
+
+        resultBlock.innerText = "Загрузка...";
+
+        try {
+            const res = await fetch(`api.php?method=${method}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    login: login,
+                    password: password
+                })
+            });
+
+            const data = await res.json();
+            resultBlock.innerText = JSON.stringify(data, null, 2);
+
+            // Если пришел токен (при логине или регистрации) — сохраняем его
+            if (data.token) {
+                localStorage.setItem('api_token', data.token);
+                document.getElementById('savedToken').innerText = data.token;
+            }
+        } catch (error) {
+            resultBlock.innerText = "Ошибка: " + error.message;
+        }
+    }
+
+    // При загрузке страницы проверяем, есть ли токен в памяти
+    window.onload = () => {
+        const token = localStorage.getItem('api_token');
+        if (token) document.getElementById('savedToken').innerText = token;
+    };
+</script>
+
+</body>
+</html>

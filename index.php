@@ -6,14 +6,13 @@ $search = $_GET['search'] ?? '';
 $searchParam = "%$search%";
 
 if ($search) {
-    $stmt = $pdo->prepare("SELECT * FROM books WHERE title LIKE :title OR author LIKE :author");
+    $stmt = $pdo->prepare("SELECT * FROM books WHERE (title LIKE :title OR author LIKE :author) AND is_deleted = 0");
     $stmt->execute([
         'title' => $searchParam,
         'author' => $searchParam
     ]);
 } else {
-    // Если поиска нет, выводим всё
-    $stmt = $pdo->query("SELECT * FROM books");
+    $stmt = $pdo->query("SELECT * FROM books WHERE is_deleted = 0");
 }
 $books = $stmt->fetchAll();
 ?>
