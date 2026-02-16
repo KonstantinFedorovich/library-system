@@ -1,36 +1,30 @@
 <?php
 header('Content-Type: application/json');
 require 'db.php';
+require 'Service.php';
 
-//ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+// Инициализация сервиса
+$service = new LibraryService($pdo);
 
-function getAuthUserId($pdo) {
-    $headers = getallheaders();
-    $authHeader = $headers['Authorization'] ?? '';
-    if (!$authHeader) {
-        $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
-    }
-    if (!$authHeader) {
-        $authHeader = $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? '';
-    }
-    $token = str_replace('Bearer ', '', $authHeader);
-    if (!$token) return null;
-    $stmt = $pdo->prepare("SELECT id FROM users WHERE api_token = ?");
-    $stmt->execute([$token]);
-    $user = $stmt->fetch();
-    return $user ? $user['id'] : null;
-}
-
-//ОБРАБОТКА ВХОДЯЩИХ ДАННЫХ
-
+//ПОЛУЧЕНИЕ ДАННЫХ
 $inputJSON = file_get_contents('php://input');
 $input = json_decode($inputJSON, true) ?? [];
-
 $method = $_GET['method'] ?? '';
 
+//АВТОРИЗАЦИЯ
+// Пытаемся найти токен в заголовках или GET-параметрах
+$headers = getallheaders();
+$authHeader = $headers['Authorization'] ?? $_SERVER['HTTP_AUTHORIZATION'] ?? $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? '';
+if (!$authHeader && isset($_GET['token'])) {
+    $authHeader = 'Bearer ' . $_GET['token'];
+}
+
+// Получаем ID текущего юзера
+$currentUserId = $service->getUserByToken($authHeader);
 $response = ['status' => 'error', 'message' => 'Method not found'];
 
-//Роутер
+//РОУТЕР
+// 1. РЕГИСТРАЦИЯ
 if ($method === 'register') {
     $login = $input['login'] ?? '';
     $pass  = $input['password'] ?? '';
@@ -40,29 +34,23 @@ if ($method === 'register') {
     } else {
         $stmt = $pdo->prepare("SELECT id FROM users WHERE login = ?");
         $stmt->execute([$login]);
-
         if ($stmt->fetch()) {
             $response = ['status' => 'error', 'message' => 'Пользователь уже существует'];
         } else {
             $hash = password_hash($pass, PASSWORD_DEFAULT);
             $token = bin2hex(random_bytes(32));
-
             $stmt = $pdo->prepare("INSERT INTO users (login, password_hash, api_token) VALUES (?, ?, ?)");
             if ($stmt->execute([$login, $hash, $token])) {
-                $response = [
-                    'status' => 'success',
-                    'message' => 'Вы успешно зарегистрированы',
-                    'token' => $token,
-                    'user_id' => $pdo->lastInsertId()
-                ];
+                $response = ['status' => 'success', 'token' => $token, 'user_id' => $pdo->lastInsertId()];
             }
         }
     }
 }
+
+// 2. ЛОГИН
 elseif ($method === 'login') {
     $login = $input['login'] ?? '';
     $pass  = $input['password'] ?? '';
-
     $stmt = $pdo->prepare("SELECT * FROM users WHERE login = ?");
     $stmt->execute([$login]);
     $user = $stmt->fetch();
@@ -71,175 +59,100 @@ elseif ($method === 'login') {
         $newToken = bin2hex(random_bytes(32));
         $update = $pdo->prepare("UPDATE users SET api_token = ? WHERE id = ?");
         $update->execute([$newToken, $user['id']]);
-        $response = [
-            'status' => 'success',
-            'token' => $newToken,
-            'user_id' => $user['id']
-        ];
+        $response = ['status' => 'success', 'token' => $newToken, 'user_id' => $user['id']];
     } else {
         $response = ['status' => 'error', 'message' => 'Неверный логин или пароль'];
     }
 }
+// 3. СПИСОК ЮЗЕРОВ
 elseif ($method === 'get_users') {
     $stmt = $pdo->query("SELECT id, login FROM users");
-    $response = [
-        'status' => 'success',
-        'users' => $stmt->fetchAll()
-    ];
+    $response = ['status' => 'success', 'users' => $stmt->fetchAll()];
 }
-
-// 4. Создать книгу (create book)
+// 4. СОЗДАТЬ КНИГУ
 elseif ($method === 'create_book') {
-    $userId = getAuthUserId($pdo);
-
-    if (!$userId) {
-        $response = ['status' => 'error', 'message' => 'Ошибка авторизации. Токен не найден.'];
+    if (!$currentUserId) {
+        $response = ['status' => 'error', 'message' => 'Ошибка авторизации'];
     } else {
         $title = $_POST['title'] ?? $input['title'] ?? '';
         $text  = $_POST['text'] ?? $input['text'] ?? '';
-        // логика загрузки файла
+
         if (isset($_FILES['book_file']) && $_FILES['book_file']['error'] === UPLOAD_ERR_OK) {
             $text = file_get_contents($_FILES['book_file']['tmp_name']);
         }
         if (!$title) {
-            $response = ['status' => 'error', 'message' => 'Название книги обязательно'];
+            $response = ['status' => 'error', 'message' => 'Название обязательно'];
         } else {
             $stmt = $pdo->prepare("INSERT INTO books (user_id, title, content) VALUES (?, ?, ?)");
-            if ($stmt->execute([$userId, $title, $text])) {
-                $response = [
-                    'status' => 'success',
-                    'message' => 'Книга успешно создана!',
-                    'book_id' => $pdo->lastInsertId()
-                ];
-            } else {
-                $response = ['status' => 'error', 'message' => 'Ошибка базы данных'];
+            if ($stmt->execute([$currentUserId, $title, $text])) {
+                $response = ['status' => 'success', 'message' => 'Книга создана', 'book_id' => $pdo->lastInsertId()];
             }
         }
     }
 }
-// 5.Получить список своих книг
-if ($method === 'get_books') {
-    $userId = getAuthUserId($pdo);
-    
-    if (!$userId) {
+// 5. МОИ КНИГИ
+elseif ($method === 'get_books') {
+    if (!$currentUserId) {
         $response = ['status' => 'error', 'message' => 'Ошибка авторизации'];
     } else {
-        // Выбираем только активные книги (не удаленные)
         $stmt = $pdo->prepare("SELECT id, title FROM books WHERE user_id = ? AND is_deleted = 0");
-        $stmt->execute([$userId]);
-        $books = $stmt->fetchAll();
-        
-        $response = [
-            'status' => 'success', 
-            'books' => $books
-        ];
+        $stmt->execute([$currentUserId]);
+        $response = ['status' => 'success', 'books' => $stmt->fetchAll()];
     }
 }
-// 6. Открыть книгу (получить полный текст)
+// 6. ОТКРЫТЬ КНИГУ
 elseif ($method === 'get_book') {
-    $userId = getAuthUserId($pdo);
     $bookId = $_GET['id'] ?? null;
-    
-    if (!$userId) {
+    if (!$currentUserId) {
         $response = ['status' => 'error', 'message' => 'Ошибка авторизации'];
-    } elseif (!$bookId) {
-        $response = ['status' => 'error', 'message' => 'Не указан ID книги'];
-    } else {
-        $stmt = $pdo->prepare("SELECT * FROM books WHERE id = ? AND user_id = ?");
-        $stmt->execute([$bookId, $userId]);
+    } elseif ($bookId) {
+        $stmt = $pdo->prepare("SELECT * FROM books WHERE id = ?");
+        $stmt->execute([$bookId]);
         $book = $stmt->fetch();
-        
-        if ($book) {
+
+        // Проверка: это моя книга ИЛИ мне дали доступ к автору этой книги?
+        if ($book && $service->checkAccess($book['user_id'], $currentUserId)) {
             $response = ['status' => 'success', 'book' => $book];
         } else {
-            $response = ['status' => 'error', 'message' => 'Книга не найдена или доступ запрещен'];
+            $response = ['status' => 'error', 'message' => 'Доступ запрещен или книга не найдена'];
         }
     }
 }
-// 7. Поиск внешних книг (google books)
+
+// 7. ПОИСК В GOOGLE (Через сервис!)
 elseif ($method === 'search_external') {
     $q = $_GET['q'] ?? '';
-
-    if (!$q) {
-        $response = ['status' => 'error', 'message' => 'Введите поисковый запрос'];
-    } else {
-        $url = "https://www.googleapis.com/books/v1/volumes?q=" . urlencode($q);
-        $googleJson = @file_get_contents($url);
-        if ($googleJson === false) {
-             $response = ['status' => 'error', 'message' => 'Не удалось связаться с Google API'];
-        } else {
-            $data = json_decode($googleJson, true);
-            $items = $data['items'] ?? [];
-            $results = [];
-
-            foreach ($items as $item) {
-                $info = $item['volumeInfo'];
-                $results[] = [
-                    'google_id' => $item['id'],
-                    'title' => $info['title'] ?? 'Без названия',
-                    'authors' => $info['authors'] ?? ['Неизвестен'],
-                    'description' => $info['description'] ?? 'Описание отсутствует'
-                ];
-            }
-
-            $response = [
-                'status' => 'success',
-                'total' => count($results),
-                'items' => $results
-            ];
-        }
-    }
+    // Вся сложная логика ушла в Service.php, тут чистота!
+    $response = $service->searchGoogleBooks($q);
 }
-// 8. ДАТЬ ДОСТУП К БИБЛИОТЕКЕ
+
+// 8. ДАТЬ ДОСТУП
 elseif ($method === 'grant_access') {
-    $userId = getAuthUserId($pdo); // Это я (Владелец)
-    $guestId = $input['guest_id'] ?? $_POST['guest_id'] ?? null; // Кому даю (Гость)
-
-    if (!$userId) {
+    $guestId = $input['guest_id'] ?? $_POST['guest_id'] ?? null;
+    if (!$currentUserId) {
         $response = ['status' => 'error', 'message' => 'Ошибка авторизации'];
-    } elseif (!$guestId) {
-        $response = ['status' => 'error', 'message' => 'Не указан ID пользователя (guest_id)'];
-    } elseif ($userId == $guestId) {
-        $response = ['status' => 'error', 'message' => 'Нельзя дать доступ самому себе'];
-    } else {
-        // Пробуем добавить запись. IGNORE означает: если доступ уже есть, ошибки не будет
+    } elseif ($guestId && $guestId != $currentUserId) {
         $stmt = $pdo->prepare("INSERT IGNORE INTO access_rights (owner_id, guest_id) VALUES (?, ?)");
-        if ($stmt->execute([$userId, $guestId])) {
-            $response = ['status' => 'success', 'message' => "Доступ для пользователя ID $guestId открыт"];
-        } else {
-            $response = ['status' => 'error', 'message' => 'Ошибка БД'];
-        }
-    }
-}
-
-// 9. СПИСОК КНИГ ДРУГОГО ПОЛЬЗОВАТЕЛЯ
-elseif ($method === 'get_other_books') {
-    $myId = getAuthUserId($pdo);
-    $ownerId = $_GET['owner_id'] ?? null;
-
-    if (!$myId) {
-        $response = ['status' => 'error', 'message' => 'Ошибка авторизации'];
-    } elseif (!$ownerId) {
-        $response = ['status' => 'error', 'message' => 'Не указан ID владельца'];
+        $stmt->execute([$currentUserId, $guestId]);
+        $response = ['status' => 'success', 'message' => "Доступ открыт для ID $guestId"];
     } else {
-        // ПРОВЕРКА ПРАВ: Есть ли запись в access_rights?
-        $check = $pdo->prepare("SELECT id FROM access_rights WHERE owner_id = ? AND guest_id = ?");
-        $check->execute([$ownerId, $myId]);
-
-        if ($check->fetch()) {
-            $stmt = $pdo->prepare("SELECT id, title FROM books WHERE user_id = ? AND is_deleted = 0");
-            $stmt->execute([$ownerId]);
-            $books = $stmt->fetchAll();
-
-            $response = [
-                'status' => 'success',
-                'owner_id' => $ownerId,
-                'books' => $books
-            ];
-        } else {
-            $response = ['status' => 'error', 'message' => 'Доступ запрещен. Попросите владельца добавить вас.'];
-        }
+        $response = ['status' => 'error', 'message' => 'Некорректный ID гостя'];
     }
 }
+
+// 9. ЧУЖАЯ БИБЛИОТЕКА (С проверкой через Сервис)
+elseif ($method === 'get_other_books') {
+    $ownerId = $_GET['owner_id'] ?? null;
+    if (!$currentUserId) {
+        $response = ['status' => 'error', 'message' => 'Ошибка авторизации'];
+    } elseif ($service->checkAccess($ownerId, $currentUserId)) {
+        $stmt = $pdo->prepare("SELECT id, title FROM books WHERE user_id = ? AND is_deleted = 0");
+        $stmt->execute([$ownerId]);
+        $response = ['status' => 'success', 'owner_id' => $ownerId, 'books' => $stmt->fetchAll()];
+    } else {
+        $response = ['status' => 'error', 'message' => 'Нет доступа к библиотеке этого пользователя'];
+    }
+}
+
 echo json_encode($response, JSON_UNESCAPED_UNICODE);
 ?>

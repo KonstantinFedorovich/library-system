@@ -14,7 +14,7 @@
 </head>
 <body>
 
-    <h1>⚡ Быстрый тест API</h1>
+    <h1>Быстрый тест API</h1>
 
     <div class="box">
         <h3>1. Вход / Регистрация</h3>
@@ -37,14 +37,14 @@
     </div>
     <div class="box" style="border-color: blue;">
         <h3>3. Моя библиотека</h3>
-        <button onclick="getMyBooks()" style="background: #cce5ff;">📚 Загрузить список книг</button>
+        <button onclick="getMyBooks()" style="background: #cce5ff;">Загрузить список книг</button>
 
         <div id="booksList" style="margin-top: 10px;"></div>
     </div>
     <div class="box" style="border-color: #ff9900;">
         <h3>4. Поиск в Google Books</h3>
         <input type="text" id="googleQuery" placeholder="Введите название (например: PHP)">
-        <button onclick="searchGoogle()" style="background: #ffcc80;">🔍 Найти в Google</button>
+        <button onclick="searchGoogle()" style="background: #ffcc80;">Найти в Google</button>
 
         <div id="googleResults" style="margin-top: 15px;"></div>
     </div>
@@ -176,7 +176,7 @@
                         <small>${book.authors.join(', ')}</small><br>
                         <button onclick="saveFromGoogle('${escapeHtml(book.title)}', '${escapeHtml(book.description)}')"
                                 style="font-size: 0.8em; padding: 5px; margin-top: 5px;">
-                            💾 Сохранить к себе
+                             Сохранить к себе
                         </button>
                     `;
                     listDiv.appendChild(div);
