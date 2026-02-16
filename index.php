@@ -49,42 +49,39 @@ $books = $stmt->fetchAll();
         </form>
     </div>
 
-    <table>
+<table>
         <thead>
             <tr>
                 <th>ID</th>
                 <th>Название</th>
-                <th>Автор</th>
-                <th>Год</th>
-                <th>Статус</th>
+                <th>Текст (начало)</th> <th>Действия</th>
             </tr>
         </thead>
         <tbody>
-            <?php if (count($books) > 0): ?>
-                <?php foreach ($books as $book): ?>
-                    <tr>
-                        <td><?php echo $book['id']; ?></td>
-                        <td><?php echo htmlspecialchars($book['title']); ?></td>
-                        <td><?php echo htmlspecialchars($book['author']); ?></td>
-                        <td><?php echo $book['year']; ?></td>
-                        <td>
-                            <?php
-                                $statusClass = '';
-                                if ($book['status'] == 'доступна') $statusClass = 'status-available';
-                                elseif ($book['status'] == 'выдана') $statusClass = 'status-issued';
-                                elseif ($book['status'] == 'на реставрации') $statusClass = 'status-restoration';
-                            ?>
-                            <span class="<?php echo $statusClass; ?>">
-                                <?php echo $book['status']; ?>
-                            </span>
-                        </td>
-                    </tr>
-                <?php endforeach; ?>
-            <?php else: ?>
+            <?php foreach ($books as $book): ?>
                 <tr>
-                    <td colspan="5" style="text-align:center;">Книги не найдены ️</td>
+                    <td><?php echo $book['id']; ?></td>
+
+                    <td>
+                        <strong><?php echo htmlspecialchars($book['title']); ?></strong>
+                    </td>
+
+                    <td style="color: #666; font-size: 0.9em;">
+                        <?php
+                            $text = $book['content'] ?? '';
+                            echo mb_strimwidth(htmlspecialchars($text), 0, 100, "...");
+                        ?>
+                    </td>
+
+                    <td>
+                        <a href="delete.php?id=<?php echo $book['id']; ?>"
+                           class="btn-delete"
+                           onclick="return confirm('Вы уверены, что хотите удалить эту книгу?');">
+                           Удалить
+                        </a>
+                    </td>
                 </tr>
-            <?php endif; ?>
+            <?php endforeach; ?>
         </tbody>
     </table>
 </body>

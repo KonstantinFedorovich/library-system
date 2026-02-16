@@ -2,86 +2,135 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Панель тестирования API</title>
+    <title>Lite API Tester</title>
     <style>
-        body { font-family: sans-serif; padding: 20px; background: #f0f2f5; }
-        .container { max-width: 600px; margin: 0 auto; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        .section { margin-bottom: 30px; padding: 15px; border: 1px solid #ddd; border-radius: 8px; }
-        input { display: block; width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
-        button { width: 48%; padding: 10px; cursor: pointer; border: none; border-radius: 4px; color: white; font-weight: bold; }
-        .btn-reg { background: #28a745; }
-        .btn-login { background: #007bff; }
-        .btn-users { background: #6c757d; width: 100%; margin-top: 10px; }
-        pre { background: #333; color: #0f0; padding: 15px; border-radius: 4px; overflow-x: auto; min-height: 50px; }
-        .token-box { font-size: 12px; color: #666; word-break: break-all; margin-top: 10px; }
+        body { font-family: sans-serif; padding: 20px; max-width: 600px; margin: 0 auto; }
+        .box { border: 1px solid #ccc; padding: 15px; margin-bottom: 20px; border-radius: 8px; }
+        input, textarea, button { display: block; width: 100%; margin: 5px 0; padding: 8px; box-sizing: border-box; }
+        button { cursor: pointer; background: #eee; border: 1px solid #999; }
+        button:hover { background: #ddd; }
+        pre { background: #333; color: #0f0; padding: 10px; overflow-x: auto; }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <h1>API Library Tester</h1>
+    <h1>⚡ Быстрый тест API</h1>
 
-    <div class="section">
-        <h3>Вход и Регистрация</h3>
-        <input type="text" id="loginField" placeholder="Логин (например, admin)">
-        <input type="password" id="passField" placeholder="Пароль">
-
-        <div style="display: flex; justify-content: space-between;">
-            <button class="btn-reg" onclick="apiCall('register')">Регистрация</button>
-            <button class="btn-login" onclick="apiCall('login')">Войти (Login)</button>
+    <div class="box">
+        <h3>1. Вход / Регистрация</h3>
+        <input type="text" id="login" placeholder="Логин">
+        <input type="password" id="pass" placeholder="Пароль">
+        <div style="display: flex; gap: 10px;">
+            <button onclick="sendAuth('register')">Регистрация</button>
+            <button onclick="sendAuth('login')" style="background: #b3d7ff;">Войти (Login)</button>
         </div>
+        <button onclick="sendAuth('get_users')">Список людей</button>
     </div>
 
-    <div class="section">
-        <h3>Пользователи</h3>
-        <button class="btn-users" onclick="apiCall('get_users')">Получить список участников</button>
+    <div class="box" style="border-color: green;">
+        <h3>2. Создать книгу</h3>
+        <input type="text" id="bookTitle" placeholder="Название книги">
+        <textarea id="bookText" placeholder="Текст книги"></textarea>
+        <small>Или файл .txt:</small>
+        <input type="file" id="bookFile" accept=".txt">
+        <button onclick="createBook()" style="background: #d4edda;">Сохранить книгу</button>
+    </div>
+    <div class="box" style="border-color: blue;">
+        <h3>3. Моя библиотека</h3>
+        <button onclick="getMyBooks()" style="background: #cce5ff;">📚 Загрузить список книг</button>
+
+        <div id="booksList" style="margin-top: 10px;"></div>
     </div>
 
     <h3>Ответ сервера:</h3>
-    <pre id="apiResult">{ "waiting": "нажмите кнопку..." }</pre>
+    <pre id="out">Ожидание...</pre>
 
-    <div class="token-box">
-        <strong>Текущий токен в памяти:</strong> <span id="savedToken">отсутствует</span>
-    </div>
-</div>
+    <script>
+        // Функция 1: Для регистрации, входа и получения юзеров
+        async function sendAuth(method) {
+            const login = document.getElementById('login').value;
+            const pass = document.getElementById('pass').value;
 
-<script>
-    async function apiCall(method) {
-        const login = document.getElementById('loginField').value;
-        const password = document.getElementById('passField').value;
-        const resultBlock = document.getElementById('apiResult');
-
-        resultBlock.innerText = "Загрузка...";
-
-        try {
             const res = await fetch(`api.php?method=${method}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    login: login,
-                    password: password
-                })
+                body: JSON.stringify({ login: login, password: pass })
             });
 
             const data = await res.json();
-            resultBlock.innerText = JSON.stringify(data, null, 2);
+            document.getElementById('out').innerText = JSON.stringify(data, null, 2);
 
-            // Если пришел токен (при логине или регистрации) — сохраняем его
-            if (data.token) {
-                localStorage.setItem('api_token', data.token);
-                document.getElementById('savedToken').innerText = data.token;
+            if (data.token) { // Если сервер дал токен - запоминаем
+                localStorage.setItem('token', data.token);
+                alert('Токен получен! Теперь можно создавать книги.');
             }
-        } catch (error) {
-            resultBlock.innerText = "Ошибка: " + error.message;
         }
-    }
 
-    // При загрузке страницы проверяем, есть ли токен в памяти
-    window.onload = () => {
-        const token = localStorage.getItem('api_token');
-        if (token) document.getElementById('savedToken').innerText = token;
-    };
-</script>
+        // Функция 2: Для создания книги (с файлом)
+        async function createBook() {
+            const token = localStorage.getItem('token');
+            if (!token) return alert('Сначала войдите (Login)!');
 
+            const formData = new FormData();
+            formData.append('title', document.getElementById('bookTitle').value);
+            formData.append('text', document.getElementById('bookText').value);
+
+            const file = document.getElementById('bookFile').files[0];
+            if (file) formData.append('book_file', file);
+
+            const res = await fetch('api.php?method=create_book', {
+                method: 'POST',
+                headers: { 'Authorization': 'Bearer ' + token },
+                body: formData
+            });
+
+            const data = await res.json();
+            document.getElementById('out').innerText = JSON.stringify(data, null, 2);
+        }
+        // Функция 3: Получить список книг
+        async function getMyBooks() {
+            const token = localStorage.getItem('token');
+            if (!token) return alert('Сначала войдите!');
+
+            const res = await fetch('api.php?method=get_books', {
+                method: 'GET', // Тут GET, тело не нужно
+                headers: { 'Authorization': 'Bearer ' + token }
+            });
+
+            const data = await res.json();
+
+            // Красивый вывод JSON в черное окно
+            document.getElementById('out').innerText = JSON.stringify(data, null, 2);
+
+            //Список кнопок
+            const listDiv = document.getElementById('booksList');
+            listDiv.innerHTML = '';
+
+            if (data.books && data.books.length > 0) {
+                data.books.forEach(book => {
+                    // Создаем кнопку для каждой книги
+                    const btn = document.createElement('button');
+                    btn.innerText = `📖 ${book.title}`;
+                    btn.style.margin = '5px 0';
+                    btn.style.textAlign = 'left';
+                    btn.onclick = () => openBook(book.id);
+                    listDiv.appendChild(btn);
+                });
+            } else {
+                listDiv.innerHTML = '<p>Книг пока нет.</p>';
+            }
+        }
+
+        // Функция 4: Открыть одну книгу (по ID)
+        async function openBook(id) {
+            const token = localStorage.getItem('token');
+            const res = await fetch(`api.php?method=get_book&id=${id}`, {
+                method: 'GET',
+                headers: { 'Authorization': 'Bearer ' + token }
+            });
+            const data = await res.json();
+            document.getElementById('out').innerText = JSON.stringify(data, null, 2);
+        }
+    </script>
 </body>
 </html>
