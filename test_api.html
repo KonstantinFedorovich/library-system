@@ -48,6 +48,23 @@
 
         <div id="googleResults" style="margin-top: 15px;"></div>
     </div>
+    <div class="box" style="border-color: purple;">
+        <h3>5. Доступы (Социальная сеть)</h3>
+
+        <div style="margin-bottom: 15px; border-bottom: 1px dashed #ccc; padding-bottom: 10px;">
+            <h4> Дать доступ другу</h4>
+            <input type="number" id="guestId" placeholder="ID друга (просмотрите в Списке участников)">
+            <button onclick="grantAccess()" style="background: #e0cffc;">Открыть доступ</button>
+        </div>
+
+        <div>
+            <h4> Посмотреть чужую библиотеку</h4>
+            <input type="number" id="ownerId" placeholder="ID владельца">
+            <button onclick="viewOtherLibrary()" style="background: #e0cffc;">Загрузить книги</button>
+        </div>
+
+        <div id="otherLibraryList" style="margin-top: 10px; font-style: italic;"></div>
+    </div>
 
     <h3>Ответ сервера:</h3>
     <pre id="out">Ожидание...</pre>
@@ -200,6 +217,52 @@
                 .replace(/>/g, "&gt;")
                 .replace(/"/g, "&quot;")
                 .replace(/'/g, "&#039;");
+        }
+        // Функция 7: Дать доступ
+        async function grantAccess() {
+            const token = localStorage.getItem('token');
+            const guestId = document.getElementById('guestId').value;
+
+            if (!token) return alert('Нужна авторизация!');
+            if (!guestId) return alert('Введите ID друга!');
+
+            const res = await fetch('api.php?method=grant_access', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+                body: JSON.stringify({ guest_id: guestId })
+            });
+
+            const data = await res.json();
+            document.getElementById('out').innerText = JSON.stringify(data, null, 2);
+            alert(data.message);
+        }
+
+        // Функция 8: Посмотреть чужие книги
+        async function viewOtherLibrary() {
+            const token = localStorage.getItem('token');
+            const ownerId = document.getElementById('ownerId').value;
+
+            if (!token) return alert('Нужна авторизация!');
+
+            const res = await fetch(`api.php?method=get_other_books&owner_id=${ownerId}`, {
+                method: 'GET',
+                headers: { 'Authorization': 'Bearer ' + token }
+            });
+
+            const data = await res.json();
+            document.getElementById('out').innerText = JSON.stringify(data, null, 2);
+
+            const listDiv = document.getElementById('otherLibraryList');
+            listDiv.innerHTML = '';
+
+            if (data.status === 'success') {
+                listDiv.innerHTML = `<strong>Книги пользователя ID ${ownerId}:</strong><br>`;
+                data.books.forEach(book => {
+                    listDiv.innerHTML += `${book.title}<br>`;
+                });
+            } else {
+                listDiv.innerHTML = `<span style="color:red"> ${data.message}</span>`;
+            }
         }
     </script>
 </body>

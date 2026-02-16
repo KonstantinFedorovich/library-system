@@ -30,7 +30,7 @@ $method = $_GET['method'] ?? '';
 
 $response = ['status' => 'error', 'message' => 'Method not found'];
 
-//РОУТЕР
+//Роутер
 if ($method === 'register') {
     $login = $input['login'] ?? '';
     $pass  = $input['password'] ?? '';
@@ -88,7 +88,7 @@ elseif ($method === 'get_users') {
     ];
 }
 
-// 4. СОЗДАТЬ КНИГУ (CREATE BOOK)
+// 4. Создать книгу (create book)
 elseif ($method === 'create_book') {
     $userId = getAuthUserId($pdo);
 
@@ -97,7 +97,7 @@ elseif ($method === 'create_book') {
     } else {
         $title = $_POST['title'] ?? $input['title'] ?? '';
         $text  = $_POST['text'] ?? $input['text'] ?? '';
-        // ЛОГИКА ЗАГРУЗКИ ФАЙЛА
+        // логика загрузки файла
         if (isset($_FILES['book_file']) && $_FILES['book_file']['error'] === UPLOAD_ERR_OK) {
             $text = file_get_contents($_FILES['book_file']['tmp_name']);
         }
@@ -117,7 +117,7 @@ elseif ($method === 'create_book') {
         }
     }
 }
-// 5. ПОЛУЧИТЬ СПИСОК СВОИХ КНИГ
+// 5.Получить список своих книг
 if ($method === 'get_books') {
     $userId = getAuthUserId($pdo);
     
@@ -135,7 +135,7 @@ if ($method === 'get_books') {
         ];
     }
 }
-// 6. ОТКРЫТЬ КНИГУ (ПОЛУЧИТЬ ПОЛНЫЙ ТЕКСТ)
+// 6. Открыть книгу (получить полный текст)
 elseif ($method === 'get_book') {
     $userId = getAuthUserId($pdo);
     $bookId = $_GET['id'] ?? null;
@@ -156,7 +156,7 @@ elseif ($method === 'get_book') {
         }
     }
 }
-// 7. ПОИСК ВНЕШНИХ КНИГ (GOOGLE BOOKS)
+// 7. Поиск внешних книг (google books)
 elseif ($method === 'search_external') {
     $q = $_GET['q'] ?? '';
 
@@ -187,6 +187,57 @@ elseif ($method === 'search_external') {
                 'total' => count($results),
                 'items' => $results
             ];
+        }
+    }
+}
+// 8. ДАТЬ ДОСТУП К БИБЛИОТЕКЕ
+elseif ($method === 'grant_access') {
+    $userId = getAuthUserId($pdo); // Это я (Владелец)
+    $guestId = $input['guest_id'] ?? $_POST['guest_id'] ?? null; // Кому даю (Гость)
+
+    if (!$userId) {
+        $response = ['status' => 'error', 'message' => 'Ошибка авторизации'];
+    } elseif (!$guestId) {
+        $response = ['status' => 'error', 'message' => 'Не указан ID пользователя (guest_id)'];
+    } elseif ($userId == $guestId) {
+        $response = ['status' => 'error', 'message' => 'Нельзя дать доступ самому себе'];
+    } else {
+        // Пробуем добавить запись. IGNORE означает: если доступ уже есть, ошибки не будет
+        $stmt = $pdo->prepare("INSERT IGNORE INTO access_rights (owner_id, guest_id) VALUES (?, ?)");
+        if ($stmt->execute([$userId, $guestId])) {
+            $response = ['status' => 'success', 'message' => "Доступ для пользователя ID $guestId открыт"];
+        } else {
+            $response = ['status' => 'error', 'message' => 'Ошибка БД'];
+        }
+    }
+}
+
+// 9. СПИСОК КНИГ ДРУГОГО ПОЛЬЗОВАТЕЛЯ
+elseif ($method === 'get_other_books') {
+    $myId = getAuthUserId($pdo);
+    $ownerId = $_GET['owner_id'] ?? null;
+
+    if (!$myId) {
+        $response = ['status' => 'error', 'message' => 'Ошибка авторизации'];
+    } elseif (!$ownerId) {
+        $response = ['status' => 'error', 'message' => 'Не указан ID владельца'];
+    } else {
+        // ПРОВЕРКА ПРАВ: Есть ли запись в access_rights?
+        $check = $pdo->prepare("SELECT id FROM access_rights WHERE owner_id = ? AND guest_id = ?");
+        $check->execute([$ownerId, $myId]);
+
+        if ($check->fetch()) {
+            $stmt = $pdo->prepare("SELECT id, title FROM books WHERE user_id = ? AND is_deleted = 0");
+            $stmt->execute([$ownerId]);
+            $books = $stmt->fetchAll();
+
+            $response = [
+                'status' => 'success',
+                'owner_id' => $ownerId,
+                'books' => $books
+            ];
+        } else {
+            $response = ['status' => 'error', 'message' => 'Доступ запрещен. Попросите владельца добавить вас.'];
         }
     }
 }
