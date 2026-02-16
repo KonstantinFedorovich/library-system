@@ -156,5 +156,39 @@ elseif ($method === 'get_book') {
         }
     }
 }
+// 7. ПОИСК ВНЕШНИХ КНИГ (GOOGLE BOOKS)
+elseif ($method === 'search_external') {
+    $q = $_GET['q'] ?? '';
+
+    if (!$q) {
+        $response = ['status' => 'error', 'message' => 'Введите поисковый запрос'];
+    } else {
+        $url = "https://www.googleapis.com/books/v1/volumes?q=" . urlencode($q);
+        $googleJson = @file_get_contents($url);
+        if ($googleJson === false) {
+             $response = ['status' => 'error', 'message' => 'Не удалось связаться с Google API'];
+        } else {
+            $data = json_decode($googleJson, true);
+            $items = $data['items'] ?? [];
+            $results = [];
+
+            foreach ($items as $item) {
+                $info = $item['volumeInfo'];
+                $results[] = [
+                    'google_id' => $item['id'],
+                    'title' => $info['title'] ?? 'Без названия',
+                    'authors' => $info['authors'] ?? ['Неизвестен'],
+                    'description' => $info['description'] ?? 'Описание отсутствует'
+                ];
+            }
+
+            $response = [
+                'status' => 'success',
+                'total' => count($results),
+                'items' => $results
+            ];
+        }
+    }
+}
 echo json_encode($response, JSON_UNESCAPED_UNICODE);
 ?>
