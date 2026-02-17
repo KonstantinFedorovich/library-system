@@ -2,268 +2,216 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Lite API Tester</title>
+    <title>Library API Dashboard</title>
     <style>
-        body { font-family: sans-serif; padding: 20px; max-width: 600px; margin: 0 auto; }
-        .box { border: 1px solid #ccc; padding: 15px; margin-bottom: 20px; border-radius: 8px; }
-        input, textarea, button { display: block; width: 100%; margin: 5px 0; padding: 8px; box-sizing: border-box; }
-        button { cursor: pointer; background: #eee; border: 1px solid #999; }
-        button:hover { background: #ddd; }
-        pre { background: #333; color: #0f0; padding: 10px; overflow-x: auto; }
+        :root { --primary: #bc6c25; --success: #606c38; --bg: #fefae0; --card: #faedcd; --text: #283618; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); padding: 20px; max-width: 1000px; margin: 0 auto; }
+        h1 { text-align: center; color: #555555; margin-bottom: 30px; }
+        h3 { margin-top: 0; color: #555; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+
+        /* Сетка */
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+        .card { background: var(--card); padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); transition: transform 0.2s; }
+        .card:hover { transform: translateY(-2px); }
+
+        /* Поля и кнопки */
+        input, textarea, select { width: 100%; padding: 10px; margin: 8px 0; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
+        button { width: 100%; padding: 12px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; transition: 0.2s; margin-top: 5px; }
+
+        .btn-blue { background: var(--primary); color: white; }
+        .btn-blue:hover { background: #3046b5; }
+        .btn-green { background: #10b981; color: white; }
+        .btn-green:hover { background: #059669; }
+        .btn-orange { background: #f59e0b; color: white; }
+        .btn-purple { background: #8b5cf6; color: white; }
+
+        /* Консоль */
+        .console-box { background: #1e1e2e; color: #a6accd; padding: 20px; border-radius: 12px; margin-top: 30px; min-height: 150px; font-family: monospace; overflow-x: auto; }
+        .status-bar { margin-top: 10px; font-size: 0.9em; color: #666; text-align: right; }
+        #savedToken { font-weight: bold; color: var(--primary); }
     </style>
 </head>
 <body>
 
-    <h1>Быстрый тест API</h1>
+<h1>📚 Library API Dashboard</h1>
 
-    <div class="box">
-        <h3>1. Вход / Регистрация</h3>
+<div class="grid">
+    <div class="card">
+        <h3>👤 Вход / Регистрация</h3>
         <input type="text" id="login" placeholder="Логин">
         <input type="password" id="pass" placeholder="Пароль">
         <div style="display: flex; gap: 10px;">
-            <button onclick="sendAuth('register')">Регистрация</button>
-            <button onclick="sendAuth('login')" style="background: #b3d7ff;">Войти (Login)</button>
+            <button class="btn-green" onclick="sendAuth('register')">Регистрация</button>
+            <button class="btn-blue" onclick="sendAuth('login')">Войти</button>
         </div>
-        <button onclick="sendAuth('get_users')">Список людей</button>
+        <button class="btn-blue" style="background: #6c757d; margin-top: 10px;" onclick="sendAuth('get_users')">👥 Список всех юзеров</button>
     </div>
 
-    <div class="box" style="border-color: green;">
-        <h3>2. Создать книгу</h3>
+    <div class="card">
+        <h3>📖 Создать книгу</h3>
         <input type="text" id="bookTitle" placeholder="Название книги">
-        <textarea id="bookText" placeholder="Текст книги"></textarea>
-        <small>Или файл .txt:</small>
+        <textarea id="bookText" rows="3" placeholder="Текст книги..."></textarea>
+        <small>Или загрузить файл .txt:</small>
         <input type="file" id="bookFile" accept=".txt">
-        <button onclick="createBook()" style="background: #d4edda;">Сохранить книгу</button>
-    </div>
-    <div class="box" style="border-color: blue;">
-        <h3>3. Моя библиотека</h3>
-        <button onclick="getMyBooks()" style="background: #cce5ff;">Загрузить список книг</button>
-
-        <div id="booksList" style="margin-top: 10px;"></div>
-    </div>
-    <div class="box" style="border-color: #ff9900;">
-        <h3>4. Поиск в Google Books</h3>
-        <input type="text" id="googleQuery" placeholder="Введите название (например: PHP)">
-        <button onclick="searchGoogle()" style="background: #ffcc80;">Найти в Google</button>
-
-        <div id="googleResults" style="margin-top: 15px;"></div>
-    </div>
-    <div class="box" style="border-color: purple;">
-        <h3>5. Доступы (Социальная сеть)</h3>
-
-        <div style="margin-bottom: 15px; border-bottom: 1px dashed #ccc; padding-bottom: 10px;">
-            <h4> Дать доступ другу</h4>
-            <input type="number" id="guestId" placeholder="ID друга (просмотрите в Списке участников)">
-            <button onclick="grantAccess()" style="background: #e0cffc;">Открыть доступ</button>
-        </div>
-
-        <div>
-            <h4> Посмотреть чужую библиотеку</h4>
-            <input type="number" id="ownerId" placeholder="ID владельца">
-            <button onclick="viewOtherLibrary()" style="background: #e0cffc;">Загрузить книги</button>
-        </div>
-
-        <div id="otherLibraryList" style="margin-top: 10px; font-style: italic;"></div>
+        <button class="btn-green" onclick="createBook()">💾 Сохранить в БД</button>
     </div>
 
-    <h3>Ответ сервера:</h3>
-    <pre id="out">Ожидание...</pre>
+    <div class="card">
+        <h3>📚 Мои книги</h3>
+        <button class="btn-blue" onclick="getMyBooks()">Обновить список</button>
+        <div id="booksList" style="margin-top: 15px; max-height: 200px; overflow-y: auto;"></div>
+    </div>
 
-    <script>
-        // Функция 1: Для регистрации, входа и получения юзеров
-        async function sendAuth(method) {
-            const login = document.getElementById('login').value;
-            const pass = document.getElementById('pass').value;
+    <div class="card">
+        <h3>🔍 Поиск Google Books</h3>
+        <input type="text" id="googleQuery" placeholder="Название">
+        <button class="btn-orange" onclick="searchGoogle()">Найти в Google</button>
+        <div id="googleResults" style="margin-top: 10px;"></div>
+    </div>
 
-            const res = await fetch(`api.php?method=${method}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ login: login, password: pass })
+    <div class="card">
+        <h3>🤝 Социальная сеть</h3>
+        <input type="number" id="guestId" placeholder="ID друга (кому дать доступ)">
+        <button class="btn-purple" onclick="grantAccess()">🔓 Открыть доступ</button>
+        <hr style="border: 0; border-top: 1px solid #eee; margin: 15px 0;">
+        <input type="number" id="ownerId" placeholder="ID владельца (чье смотрим)">
+        <button class="btn-purple" style="background: #7c3aed;" onclick="viewOtherLibrary()">👀 Смотреть чужое</button>
+        <div id="otherLibraryList" style="margin-top: 10px;"></div>
+    </div>
+</div>
+
+<div class="console-box">
+    <div style="color: #666; margin-bottom: 5px;">// Ответ сервера:</div>
+    <pre id="out">Ожидание действий...</pre>
+</div>
+<div class="status-bar">
+    🔑 Токен: <span id="savedToken">Нет</span>
+</div>
+
+<script>
+    // --- API ЛОГИКА ---
+
+    async function sendAuth(method) {
+        const login = document.getElementById('login').value;
+        const pass = document.getElementById('pass').value;
+        callApi(`api.php?method=${method}`, 'POST', { login, password: pass });
+    }
+
+    async function createBook() {
+        const token = localStorage.getItem('token');
+        if (!token) return alert('Нет токена!');
+
+        const formData = new FormData();
+        formData.append('title', document.getElementById('bookTitle').value);
+        formData.append('text', document.getElementById('bookText').value);
+        const file = document.getElementById('bookFile').files[0];
+        if (file) formData.append('book_file', file);
+
+        // Отправка с FormData
+        const res = await fetch(`api.php?method=create_book&token=${token}`, {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + token },
+            body: formData
+        });
+        showResult(await res.json());
+    }
+
+    async function getMyBooks() {
+        callApi('api.php?method=get_books', 'GET', null, (data) => {
+            const list = document.getElementById('booksList');
+            list.innerHTML = '';
+            data.books.forEach(b => {
+                list.innerHTML += `<div style="padding:5px; border-bottom:1px solid #eee;">📘 <b>${b.title}</b> (ID: ${b.id}) <button onclick="openBook(${b.id})" style="width:auto; padding:2px 8px; font-size:0.8em;">Читать</button></div>`;
             });
+        });
+    }
 
+    async function openBook(id) {
+        callApi(`api.php?method=get_book&id=${id}`, 'GET');
+    }
+
+    async function searchGoogle() {
+        const q = document.getElementById('googleQuery').value;
+        callApi(`api.php?method=search_external&q=${q}`, 'GET', null, (data) => {
+            const list = document.getElementById('googleResults');
+            list.innerHTML = '';
+            data.items.forEach(b => {
+                list.innerHTML += `<div style="margin-bottom:10px; padding:5px; background:#f0f0f0; border-radius:4px;">
+                    <b>${b.title}</b><br><small>${b.authors.join(', ')}</small>
+                    <button onclick="saveFromGoogle('${escapeHtml(b.title)}', '${escapeHtml(b.description)}')" style="font-size:0.8em; background:#4cc9f0;">Сохранить</button>
+                </div>`;
+            });
+        });
+    }
+
+    async function saveFromGoogle(title, desc) {
+        const token = localStorage.getItem('token');
+        if (!token) return alert('Нет токена!');
+        const formData = new FormData();
+        formData.append('title', title);
+        formData.append('text', desc);
+
+        const res = await fetch(`api.php?method=create_book&token=${token}`, {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + token },
+            body: formData
+        });
+        showResult(await res.json());
+    }
+
+    async function grantAccess() {
+        const guestId = document.getElementById('guestId').value;
+        callApi('api.php?method=grant_access', 'POST', { guest_id: guestId });
+    }
+
+    async function viewOtherLibrary() {
+        const ownerId = document.getElementById('ownerId').value;
+        callApi(`api.php?method=get_other_books&owner_id=${ownerId}`, 'GET', null, (data) => {
+            const list = document.getElementById('otherLibraryList');
+            list.innerHTML = '';
+            if(data.books) {
+                data.books.forEach(b => list.innerHTML += `<div>📙 ${b.title}</div>`);
+            }
+        });
+    }
+
+    // --- УТИЛИТЫ ---
+
+    async function callApi(url, method, body = null, callback = null) {
+        const token = localStorage.getItem('token');
+        const headers = { 'Content-Type': 'application/json' };
+        if (token) headers['Authorization'] = 'Bearer ' + token;
+
+        const options = { method, headers };
+        if (body) options.body = JSON.stringify(body);
+
+        try {
+            const res = await fetch(url, options);
             const data = await res.json();
-            document.getElementById('out').innerText = JSON.stringify(data, null, 2);
-
-            if (data.token) { // Если сервер дал токен - запоминаем
+            showResult(data);
+            if (data.token) {
                 localStorage.setItem('token', data.token);
-                alert('Токен получен! Теперь можно создавать книги.');
+                document.getElementById('savedToken').innerText = 'Есть';
             }
+            if (callback && data.status === 'success') callback(data);
+        } catch (e) {
+            document.getElementById('out').innerText = 'Ошибка: ' + e.message;
         }
+    }
 
-        // Функция 2: Для создания книги (с файлом)
-        async function createBook() {
-            const token = localStorage.getItem('token');
-            if (!token) return alert('Сначала войдите (Login)!');
+    function showResult(data) {
+        document.getElementById('out').innerText = JSON.stringify(data, null, 2);
+    }
 
-            const formData = new FormData();
-            formData.append('title', document.getElementById('bookTitle').value);
-            formData.append('text', document.getElementById('bookText').value);
+    function escapeHtml(text) {
+        if (!text) return "";
+        return text.replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+    }
 
-            const file = document.getElementById('bookFile').files[0];
-            if (file) formData.append('book_file', file);
+    window.onload = () => {
+        if(localStorage.getItem('token')) document.getElementById('savedToken').innerText = 'Есть';
+    }
+</script>
 
-            const res = await fetch('api.php?method=create_book', {
-                method: 'POST',
-                headers: { 'Authorization': 'Bearer ' + token },
-                body: formData
-            });
-
-            const data = await res.json();
-            document.getElementById('out').innerText = JSON.stringify(data, null, 2);
-        }
-        // Функция 3: Получить список книг
-        async function getMyBooks() {
-            const token = localStorage.getItem('token');
-            if (!token) return alert('Сначала войдите!');
-
-            const res = await fetch('api.php?method=get_books', {
-                method: 'GET', // Тут GET, тело не нужно
-                headers: { 'Authorization': 'Bearer ' + token }
-            });
-
-            const data = await res.json();
-
-            // Красивый вывод JSON в черное окно
-            document.getElementById('out').innerText = JSON.stringify(data, null, 2);
-
-            //Список кнопок
-            const listDiv = document.getElementById('booksList');
-            listDiv.innerHTML = '';
-
-            if (data.books && data.books.length > 0) {
-                data.books.forEach(book => {
-                    // Создаем кнопку для каждой книги
-                    const btn = document.createElement('button');
-                    btn.innerText = `📖 ${book.title}`;
-                    btn.style.margin = '5px 0';
-                    btn.style.textAlign = 'left';
-                    btn.onclick = () => openBook(book.id);
-                    listDiv.appendChild(btn);
-                });
-            } else {
-                listDiv.innerHTML = '<p>Книг пока нет.</p>';
-            }
-        }
-
-        // Функция 4: Открыть одну книгу (по ID)
-        async function openBook(id) {
-            const token = localStorage.getItem('token');
-            const res = await fetch(`api.php?method=get_book&id=${id}`, {
-                method: 'GET',
-                headers: { 'Authorization': 'Bearer ' + token }
-            });
-            const data = await res.json();
-            document.getElementById('out').innerText = JSON.stringify(data, null, 2);
-        }
-        // Функция 5: Поиск в Google
-        async function searchGoogle() {
-            const q = document.getElementById('googleQuery').value;
-            const res = await fetch(`api.php?method=search_external&q=${q}`);
-            const data = await res.json();
-
-            document.getElementById('out').innerText = JSON.stringify(data, null, 2);
-
-            const listDiv = document.getElementById('googleResults');
-            listDiv.innerHTML = '';
-
-            if (data.items) {
-                data.items.forEach(book => {
-                    const div = document.createElement('div');
-                    div.style.borderBottom = '1px solid #eee';
-                    div.style.padding = '10px 0';
-                    div.innerHTML = `
-                        <strong>${book.title}</strong><br>
-                        <small>${book.authors.join(', ')}</small><br>
-                        <button onclick="saveFromGoogle('${escapeHtml(book.title)}', '${escapeHtml(book.description)}')"
-                                style="font-size: 0.8em; padding: 5px; margin-top: 5px;">
-                             Сохранить к себе
-                        </button>
-                    `;
-                    listDiv.appendChild(div);
-                });
-            }
-        }
-
-        // Функция 6: Сохранение найденной книги
-        // Мы используем уже готовый метод create_book!
-        async function saveFromGoogle(title, desc) {
-            const token = localStorage.getItem('token');
-            if (!token) return alert('Нужна авторизация!');
-
-            const formData = new FormData();
-            formData.append('title', title);
-            formData.append('text', desc); // Описание из гугла становится текстом книги
-
-            const res = await fetch('api.php?method=create_book', {
-                method: 'POST',
-                headers: { 'Authorization': 'Bearer ' + token },
-                body: formData
-            });
-
-            const data = await res.json();
-            document.getElementById('out').innerText = JSON.stringify(data, null, 2);
-            alert(data.message);
-
-            // Если всё ок, обновляем свой список книг
-            if (data.status === 'success') getMyBooks();
-        }
-
-        // Вспомогательная функция для безопасности текста (экранирование кавычек)
-        function escapeHtml(text) {
-            if (!text) return "";
-            return text
-                .replace(/&/g, "&amp;")
-                .replace(/</g, "&lt;")
-                .replace(/>/g, "&gt;")
-                .replace(/"/g, "&quot;")
-                .replace(/'/g, "&#039;");
-        }
-        // Функция 7: Дать доступ
-        async function grantAccess() {
-            const token = localStorage.getItem('token');
-            const guestId = document.getElementById('guestId').value;
-
-            if (!token) return alert('Нужна авторизация!');
-            if (!guestId) return alert('Введите ID друга!');
-
-            const res = await fetch('api.php?method=grant_access', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-                body: JSON.stringify({ guest_id: guestId })
-            });
-
-            const data = await res.json();
-            document.getElementById('out').innerText = JSON.stringify(data, null, 2);
-            alert(data.message);
-        }
-
-        // Функция 8: Посмотреть чужие книги
-        async function viewOtherLibrary() {
-            const token = localStorage.getItem('token');
-            const ownerId = document.getElementById('ownerId').value;
-
-            if (!token) return alert('Нужна авторизация!');
-
-            const res = await fetch(`api.php?method=get_other_books&owner_id=${ownerId}`, {
-                method: 'GET',
-                headers: { 'Authorization': 'Bearer ' + token }
-            });
-
-            const data = await res.json();
-            document.getElementById('out').innerText = JSON.stringify(data, null, 2);
-
-            const listDiv = document.getElementById('otherLibraryList');
-            listDiv.innerHTML = '';
-
-            if (data.status === 'success') {
-                listDiv.innerHTML = `<strong>Книги пользователя ID ${ownerId}:</strong><br>`;
-                data.books.forEach(book => {
-                    listDiv.innerHTML += `${book.title}<br>`;
-                });
-            } else {
-                listDiv.innerHTML = `<span style="color:red"> ${data.message}</span>`;
-            }
-        }
-    </script>
 </body>
 </html>
