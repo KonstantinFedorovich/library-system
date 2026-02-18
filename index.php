@@ -1,19 +1,41 @@
 <?php
+declare(strict_types=1);
+
+/**
+ * index.php — Главная страница (Каталог / Админка).
+ * * Функционал:
+ * 1. Отображение списка книг.
+ * 2. Поиск по названию или автору (фильтрация).
+ * 3. Кнопки для удаления книг.
+ */
+
 require 'db.php';
 
-// Логика поиска
+// 1. Получаем поисковый запрос из URL (если есть)
+// Оператор ?? '' защищает от ошибки, если параметра нет (аналог isset)
 $search = $_GET['search'] ?? '';
+
+// 2. Подготавливаем переменную для поиска с маской
+// Символ % означает "любое количество символов" до и после фразы
 $searchParam = "%$search%";
 
+// 3. Выбираем логику запроса к БД
 if ($search) {
+    // ЕСЛИ ЕСТЬ ПОИСК:
+    // Используем подготовленный запрос (prepare) для защиты от SQL-инъекций.
+    // Ищем совпадения в заголовке ИЛИ авторе.
     $stmt = $pdo->prepare("SELECT * FROM books WHERE (title LIKE :title OR author LIKE :author) AND is_deleted = 0");
     $stmt->execute([
         'title' => $searchParam,
         'author' => $searchParam
     ]);
 } else {
+    // ЕСЛИ ПОИСКА НЕТ:
+    // Просто выбираем все "живые" (не удаленные) книги.
     $stmt = $pdo->query("SELECT * FROM books WHERE is_deleted = 0");
 }
+
+// Получаем результат в виде ассоциативного массива
 $books = $stmt->fetchAll();
 ?>
 <!DOCTYPE html>
@@ -39,22 +61,25 @@ $books = $stmt->fetchAll();
 </head>
 <body>
     <h1>Каталог библиотеки</h1>
+
     <div class="search-box">
         <form action="" method="GET" style="display: flex; width: 100%; gap: 10px;">
             <input type="text" name="search" placeholder="Поиск книги или автора..." value="<?php echo htmlspecialchars($search); ?>">
             <button type="submit">Найти</button>
+
             <?php if($search): ?>
                 <a href="index.php" style="padding: 10px; text-decoration: none; color: #333; border: 1px solid #ccc; border-radius: 4px; background: white;">Сброс</a>
             <?php endif; ?>
         </form>
     </div>
 
-<table>
+    <table>
         <thead>
             <tr>
                 <th>ID</th>
                 <th>Название</th>
-                <th>Текст (начало)</th> <th>Действия</th>
+                <th>Текст (начало)</th>
+                <th>Действия</th>
             </tr>
         </thead>
         <tbody>
@@ -68,6 +93,7 @@ $books = $stmt->fetchAll();
 
                     <td style="color: #666; font-size: 0.9em;">
                         <?php
+                            // Обрезаем длинный текст до 100 символов для превью
                             $text = $book['content'] ?? '';
                             echo mb_strimwidth(htmlspecialchars($text), 0, 100, "...");
                         ?>
@@ -76,6 +102,7 @@ $books = $stmt->fetchAll();
                     <td>
                         <a href="delete.php?id=<?php echo $book['id']; ?>"
                            class="btn-delete"
+                           style="color: red; text-decoration: none; font-weight: bold;"
                            onclick="return confirm('Вы уверены, что хотите удалить эту книгу?');">
                            Удалить
                         </a>
